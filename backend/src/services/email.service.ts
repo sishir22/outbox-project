@@ -48,6 +48,25 @@ export class EmailService {
     }
 
     if (!sender) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user) {
+        sender = await prisma.sender.create({
+          data: {
+            userId: user.id,
+            email: user.email,
+            displayName: user.name || user.email.split('@')[0],
+            smtpHost: 'smtp.ethereal.email',
+            smtpPort: 587,
+            smtpUser: '',
+            smtpPass: '',
+            hourlyLimit: 100,
+            isDefault: true,
+          },
+        });
+      }
+    }
+
+    if (!sender) {
       throw new Error(`Sender mailbox not found. Please ensure your account has a sender mailbox.`);
     }
 

@@ -174,3 +174,11 @@ export async function testSlackNotification() {
   const res = await fetch(`${API_BASE}/slack/test`, { method: 'POST' });
   return res.json();
 }
+
+export async function getSlackAuthUrl(): Promise<{ success: boolean; url?: string; message?: string }> {
+  const res = await fetch(`${API_BASE}/slack/auth-url`, {
+    headers: getAuthHeaders(),
+    cache: 'no-store',
+  });
+  return res.json();
+}

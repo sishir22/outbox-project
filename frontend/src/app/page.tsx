@@ -17,6 +17,7 @@ import {
   fetchSentEmails,
   searchEmails,
   fetchSlackStatus,
+  getSlackAuthUrl,
 } from '../lib/api';
 
 export default function DashboardPage() {
@@ -47,15 +48,21 @@ export default function DashboardPage() {
       return;
     }
 
-    fetchSlackStatus().then((res) => {
-      if (res.success) setSlackConnected(res.connected);
-    });
+    fetchSlackStatus()
+      .then((res) => {
+        if (res?.success) setSlackConnected(res.connected);
+      })
+      .catch(() => {});
   }, [router]);
 
   const refreshCounts = useCallback(async () => {
-    const res = await fetchCounts();
-    if (res.success) {
-      setCounts(res.data);
+    try {
+      const res = await fetchCounts();
+      if (res?.success && res.data) {
+        setCounts(res.data);
+      }
+    } catch {
+      // Gracefully ignore network errors when backend is offline
     }
   }, []);
 
@@ -143,15 +150,14 @@ export default function DashboardPage() {
   // Connect Slack flow
   const handleConnectSlack = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/slack/auth-url');
-      const data = await res.json();
-      if (data.url) {
+      const data = await getSlackAuthUrl();
+      if (data?.url) {
         window.location.href = data.url;
       } else {
-        alert('Please configure SLACK_CLIENT_ID in backend/.env to connect live Slack.');
+        alert(data?.message || 'Please configure SLACK_CLIENT_ID in backend/.env to connect live Slack.');
       }
     } catch {
-      alert('Error fetching Slack OAuth URL');
+      alert('Error fetching Slack OAuth URL from backend.');
     }
   };
 

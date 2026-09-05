@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Paperclip,
@@ -24,7 +24,14 @@ interface ComposeModalProps {
 }
 
 export const ComposeModal: React.FC<ComposeModalProps> = ({ user, onClose, onScheduled }) => {
-  const [senderId, setSenderId] = useState(user?.senders[0]?.id || '');
+  const [senderId, setSenderId] = useState(user?.senders?.[0]?.id || '');
+
+  // Keep senderId in sync once user is loaded
+  useEffect(() => {
+    if (!senderId && user?.senders?.[0]?.id) {
+      setSenderId(user.senders[0].id);
+    }
+  }, [user, senderId]);
   const [toInput, setToInput] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -114,7 +121,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ user, onClose, onSch
     try {
       const res = await scheduleEmailBatch({
         userId: user?.id,
-        senderId: senderId || user?.senders[0]?.id,
+        senderId: senderId || user?.senders?.[0]?.id,
         subject,
         body,
         recipients: emails,
@@ -242,11 +249,15 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ user, onClose, onSch
             onChange={(e) => setSenderId(e.target.value)}
             className="flex-1 bg-transparent text-gray-800 font-medium focus:outline-none"
           >
-            {user?.senders.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.email} ({s.displayName})
-              </option>
-            ))}
+            {user?.senders && user.senders.length > 0 ? (
+              user.senders.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.email} ({s.displayName})
+                </option>
+              ))
+            ) : (
+              <option value="">{user?.email || 'Default Sender'}</option>
+            )}
           </select>
         </div>
 

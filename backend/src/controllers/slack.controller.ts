@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { config } from '../config/env';
 import { SlackService } from '../services/slack.service';
 import { AuthController } from './auth.controller';
+import { EmailController } from './email.controller';
 
 export class SlackController {
   /**
@@ -10,7 +11,7 @@ export class SlackController {
    */
   public static async getStatus(req: Request, res: Response) {
     try {
-      const user = await AuthController.getOrCreateDefaultUser();
+      const user = await EmailController.resolveUser(req);
       const integration = await prisma.slackIntegration.findFirst({
         where: { userId: user.id, connected: true },
       });
@@ -51,16 +52,16 @@ export class SlackController {
   public static async callback(req: Request, res: Response) {
     const code = req.query.code as string;
     if (!code) {
-      return res.redirect(`${config.frontendUrl}/dashboard?slack=error_no_code`);
+      return res.redirect(`${config.frontendUrl}/?slack=error_no_code`);
     }
 
     try {
-      const user = await AuthController.getOrCreateDefaultUser();
+      const user = await EmailController.resolveUser(req);
       await SlackService.exchangeOAuthCode(code, user.id);
-      return res.redirect(`${config.frontendUrl}/dashboard?slack=connected`);
+      return res.redirect(`${config.frontendUrl}/?slack=connected`);
     } catch (error: any) {
       console.error('[SlackController] Callback error:', error.message);
-      return res.redirect(`${config.frontendUrl}/dashboard?slack=error`);
+      return res.redirect(`${config.frontendUrl}/?slack=error`);
     }
   }
 
@@ -69,7 +70,7 @@ export class SlackController {
    */
   public static async disconnect(req: Request, res: Response) {
     try {
-      const user = await AuthController.getOrCreateDefaultUser();
+      const user = await EmailController.resolveUser(req);
       await prisma.slackIntegration.updateMany({
         where: { userId: user.id },
         data: { connected: false },
@@ -87,8 +88,8 @@ export class SlackController {
    */
   public static async sendTestNotification(req: Request, res: Response) {
     try {
-      const user = await AuthController.getOrCreateDefaultUser();
-      const sender = user.senders[0];
+      const user = await EmailController.resolveUser(req);
+      const sender = user.senders?.[0];
 
       const sent = await SlackService.notifyRateLimitHit({
         userId: user.id,

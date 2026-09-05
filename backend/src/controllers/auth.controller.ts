@@ -158,8 +158,8 @@ export class AuthController {
         },
       });
 
-      // Redirect to frontend dashboard
-      return res.redirect(`${config.frontendUrl}/dashboard?userId=${user.id}`);
+      // Redirect to frontend dashboard (at root /)
+      return res.redirect(`${config.frontendUrl}/?userId=${user.id}`);
     } catch (err: any) {
       console.error('[AuthController] Google login error:', err.response?.data || err.message);
       return res.redirect(`${config.frontendUrl}/login?error=auth_failed`);
@@ -177,7 +177,7 @@ export class AuthController {
         return res.status(400).json({ success: false, message: 'Email is required' });
       }
 
-      const user = await prisma.user.upsert({
+      let user = await prisma.user.upsert({
         where: { email },
         create: {
           email,
@@ -206,6 +206,23 @@ export class AuthController {
         },
         include: { senders: true },
       });
+
+      if (user.senders.length === 0) {
+        const defaultSender = await prisma.sender.create({
+          data: {
+            userId: user.id,
+            email: user.email,
+            displayName: user.name || user.email.split('@')[0],
+            smtpHost: 'smtp.ethereal.email',
+            smtpPort: 587,
+            smtpUser: config.ethereal.user || '',
+            smtpPass: config.ethereal.pass || '',
+            hourlyLimit: 100,
+            isDefault: true,
+          },
+        });
+        user = { ...user, senders: [defaultSender] };
+      }
 
       return res.json({ success: true, user });
     } catch (error: any) {

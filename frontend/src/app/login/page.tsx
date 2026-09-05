@@ -31,20 +31,46 @@ export default function LoginPage() {
         throw new Error('No email found for this Google account.');
       }
 
-      // 2. Synchronize with MySQL backend
-      const res = await syncUserWithBackend({
-        email: firebaseUser.email,
+      // Base user profile from Google
+      const fallbackUser = {
+        id: firebaseUser.uid,
         name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-        avatarUrl: firebaseUser.photoURL || undefined,
-        googleId: firebaseUser.uid,
-      });
+        email: firebaseUser.email,
+        avatarUrl:
+          firebaseUser.photoURL ||
+          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=128&auto=format&fit=crop&q=80',
+        senders: [
+          {
+            id: `sender_${firebaseUser.uid}`,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+            hourlyLimit: 100,
+            isDefault: true,
+          },
+        ],
+      };
 
-      if (res.success && res.user) {
-        localStorage.setItem('reachinbox_user', JSON.stringify(res.user));
-        router.push('/');
-      } else {
-        throw new Error('Failed to sync user with database');
+      // 2. Synchronize with MySQL backend if reachable
+      try {
+        const res = await syncUserWithBackend({
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          avatarUrl: firebaseUser.photoURL || undefined,
+          googleId: firebaseUser.uid,
+        });
+
+        if (res && res.success && res.user) {
+          localStorage.setItem('reachinbox_user', JSON.stringify(res.user));
+          router.push('/');
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('Backend sync skipped (backend not deployed to HTTPS yet):', backendErr);
       }
+
+      // Save verified Google account and redirect to dashboard
+      localStorage.setItem('reachinbox_user', JSON.stringify(fallbackUser));
+      router.push('/');
     } catch (err: any) {
       console.warn('Firebase Google Auth error:', err);
       if (err.code === 'auth/unauthorized-domain') {

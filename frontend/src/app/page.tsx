@@ -7,6 +7,7 @@ import { TopHeader } from '../components/TopHeader';
 import { EmailList } from '../components/EmailList';
 import { EmailDetail } from '../components/EmailDetail';
 import { ComposeModal } from '../components/ComposeModal';
+import { SlackModal } from '../components/SlackModal';
 import {
   User,
   EmailRecord,
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [slackConnected, setSlackConnected] = useState(false);
+  const [isSlackModalOpen, setIsSlackModalOpen] = useState(false);
 
   // Initial auth guard & load
   useEffect(() => {
@@ -48,9 +50,17 @@ export default function DashboardPage() {
       return;
     }
 
+    const savedSlack = localStorage.getItem('reachinbox_slack_connected');
+    if (savedSlack === 'true') {
+      setSlackConnected(true);
+    }
+
     fetchSlackStatus()
       .then((res) => {
-        if (res?.success) setSlackConnected(res.connected);
+        if (res?.success) {
+          setSlackConnected(res.connected);
+          localStorage.setItem('reachinbox_slack_connected', String(res.connected));
+        }
       })
       .catch(() => {});
   }, [router]);
@@ -147,18 +157,9 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [loadEmails]);
 
-  // Connect Slack flow
-  const handleConnectSlack = async () => {
-    try {
-      const data = await getSlackAuthUrl();
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data?.message || 'Please configure SLACK_CLIENT_ID in backend/.env to connect live Slack.');
-      }
-    } catch {
-      alert('Error fetching Slack OAuth URL from backend.');
-    }
+  // Connect Slack flow: opens the Slack Integration & Rate Limit Alert Modal
+  const handleConnectSlack = () => {
+    setIsSlackModalOpen(true);
   };
 
   return (
@@ -215,6 +216,14 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
+
+      {/* Slack Integration & Rate Limit Alert Modal */}
+      <SlackModal
+        isOpen={isSlackModalOpen}
+        onClose={() => setIsSlackModalOpen(false)}
+        connected={slackConnected}
+        onConnectionChange={(val) => setSlackConnected(val)}
+      />
     </div>
   );
 }

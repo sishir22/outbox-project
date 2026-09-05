@@ -112,7 +112,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer Utilities (Slack & Bull Board) */}
       <div className="p-4 border-t border-gray-200 space-y-2 bg-gray-50/50">
         {/* Slack Connection Status */}
-        <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2.5">
+        <div
+          onClick={onConnectSlack}
+          className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:border-gray-300 transition select-none"
+        >
           <div className="flex items-center space-x-2">
             <Slack className={`w-4 h-4 ${slackConnected ? 'text-[#4A154B]' : 'text-gray-400'}`} />
             <span className="text-xs font-medium text-gray-700">
@@ -121,13 +124,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           {!slackConnected ? (
             <button
-              onClick={onConnectSlack}
+              onClick={(e) => {
+                e.stopPropagation();
+                onConnectSlack();
+              }}
               className="text-[11px] bg-gray-900 text-white hover:bg-black font-semibold px-2 py-1 rounded"
             >
               Connect
             </button>
           ) : (
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Connected" />
           )}
         </div>
 

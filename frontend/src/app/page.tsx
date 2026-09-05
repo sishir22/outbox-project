@@ -31,29 +31,26 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [slackConnected, setSlackConnected] = useState(false);
 
-  // Initial load: User, Counts, Slack status
+  // Initial auth guard & load
   useEffect(() => {
-    // Check localStorage first
     const savedUser = localStorage.getItem('reachinbox_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        // Fallback to fetchMe
-      }
+    if (!savedUser) {
+      router.push('/login');
+      return;
     }
 
-    fetchMe().then((res) => {
-      if (res.success && !savedUser) {
-        setUser(res.user);
-        localStorage.setItem('reachinbox_user', JSON.stringify(res.user));
-      }
-    });
+    try {
+      setUser(JSON.parse(savedUser));
+    } catch {
+      localStorage.removeItem('reachinbox_user');
+      router.push('/login');
+      return;
+    }
 
     fetchSlackStatus().then((res) => {
       if (res.success) setSlackConnected(res.connected);
     });
-  }, []);
+  }, [router]);
 
   const refreshCounts = useCallback(async () => {
     const res = await fetchCounts();

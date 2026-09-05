@@ -47,10 +47,16 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.warn('Firebase Google Auth error:', err);
-      if (err.code === 'auth/configuration-not-found' || err.code === 'auth/invalid-api-key' || !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      if (err.code === 'auth/unauthorized-domain') {
         setError(
-          'Firebase credentials not configured yet in frontend/.env.local. You can test directly using Demo Login below, or paste your Firebase config!'
+          'This domain is not authorized in Firebase yet. Please add your Vercel URL to Authorized Domains in Firebase Console (Authentication > Settings > Authorized Domains).'
         );
+      } else if (
+        err.code === 'auth/configuration-not-found' ||
+        err.code === 'auth/invalid-api-key' ||
+        !process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+      ) {
+        setError('Firebase credentials not configured yet in environment variables.');
       } else if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Failed to login with Google');
       }
@@ -59,25 +65,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/auth/me');
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('reachinbox_user', JSON.stringify(data.user));
-      }
-      router.push('/');
-    } catch {
-      router.push('/');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    handleDemoLogin();
+    setError('Email/password login is disabled. Please use "Login with Google".');
   };
 
   return (
@@ -153,14 +143,6 @@ export default function LoginPage() {
             Login
           </button>
         </form>
-
-        {/* Quick Demo Bypass */}
-        <button
-          onClick={handleDemoLogin}
-          className="mt-4 text-xs text-gray-400 hover:text-gray-700 underline transition"
-        >
-          Quick Demo Login (Oliver Brown)
-        </button>
       </div>
     </div>
   );

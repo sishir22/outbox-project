@@ -1,0 +1,148 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum EmailStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum BatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+model User {
+  id                String             @id @default(uuid())
+  googleId          String?            @unique
+  email             String             @unique
+  name              String
+  avatarUrl         String?            @db.Text
+  passwordHash      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  senders           Sender[]
+  emailBatches      EmailBatch[]
+  slackIntegrations SlackIntegration[]
+
+  @@map("users")
+}
+
+model Sender {
+  id           String       @id @default(uuid())
+  userId       String
+  email        String
+  displayName  String
+  smtpHost     String
+  smtpPort     Int          @default(587)
+  smtpUser     String
+  smtpPass     String
+  hourlyLimit  Int          @default(100)
+  isDefault    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailBatches EmailBatch[]
+  emails       Email[]
+
+  @@unique([userId, email])
+  @@map("senders")
+}
+
+model SlackIntegration {
+  id                 String   @id @default(uuid())
+  userId             String
+  teamId             String
+  teamName           String
+  accessToken        String   @db.Text
+  incomingWebhookUrl String?  @db.Text
+  channel            String?
+  channelId          String?
+  connected          Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("slack_integrations")
+}
+
+model EmailBatch {
+  id                   String      @id @default(uuid())
+  userId               String
+  senderId             String
+  subject              String
+  body                 String      @db.LongText
+  startAt              DateTime
+  delayBetweenEmailsMs Int         @default(2000)
+  hourlyLimit          Int         @default(100)
+  status               BatchStatus @default(SCHEDULED)
+  totalCount           Int         @default(0)
+  sentCount            Int         @default(0)
+  failedCount          Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender               Sender      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  emails               Email[]
+
+  @@map("email_batches")
+}
+
+model Email {
+  id                  String      @id @default(uuid())
+  batchId             String?
+  senderId            String
+  recipientEmail      String
+  subject             String
+  body                String      @db.LongText
+  status              EmailStatus @default(SCHEDULED)
+  scheduledAt         DateTime
+  sentAt              DateTime?
+  attemptCount        Int         @default(0)
+  processingStartedAt DateTime?
+  idempotencyKey      String      @unique
+  messageId           String?
+  providerMessageId   String?
+  previewUrl          String?     @db.Text
+  errorMessage        String?     @db.Text
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  batch               EmailBatch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  sender              Sender       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments         Attachment[]
+
+  @@index([status, scheduledAt])
+  @@index([senderId, status])
+  @@map("emails")
+}
+
+model Attachment {
+  id          String   @id @default(uuid())
+  emailId     String
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  storagePath String
+  createdAt   DateTime @default(now())
+
+  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}

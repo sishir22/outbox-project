@@ -141,6 +141,34 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ user, onClose, onSch
       setLoading(false);
     }
 
+    // Save client-side email record for instant preview persistence
+    try {
+      const isSched = Boolean(scheduledDateTime);
+      const newEmail = {
+        id: `custom_${Date.now()}`,
+        recipientEmail: emails[0],
+        subject,
+        body,
+        status: isSched ? 'SCHEDULED' : 'SENT',
+        scheduledAt: scheduledDateTime ? new Date(scheduledDateTime).toISOString() : new Date().toISOString(),
+        sentAt: isSched ? null : new Date().toISOString(),
+        previewUrl: isSched ? null : 'https://ethereal.email',
+        sender: {
+          id: senderId || 'default',
+          email: user?.email || 'sishir.molleti02@gmail.com',
+          displayName: user?.name || 'Sishir Molleti',
+          hourlyLimit,
+          isDefault: true,
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      const stored = localStorage.getItem('reachinbox_custom_emails');
+      const list = stored ? JSON.parse(stored) : [];
+      list.unshift(newEmail);
+      localStorage.setItem('reachinbox_custom_emails', JSON.stringify(list));
+    } catch {}
+
     onScheduled();
     onClose();
   };

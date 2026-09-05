@@ -140,12 +140,32 @@ export default function DashboardPage() {
       refreshCounts();
     } catch (err) {
       console.warn('Backend API unreachable (using offline preview data):', err);
-      if (activeTab === 'scheduled') {
-        setEmails(fallbackScheduled);
+      let customEmails: EmailRecord[] = [];
+      try {
+        const stored = localStorage.getItem('reachinbox_custom_emails');
+        if (stored) customEmails = JSON.parse(stored);
+      } catch {}
+
+      const customScheduled = customEmails.filter((e) => e.status === 'SCHEDULED');
+      const customSent = customEmails.filter((e) => e.status === 'SENT');
+
+      const allScheduled = [...customScheduled, ...fallbackScheduled];
+      const allSent = [...customSent, ...fallbackSent];
+
+      const base = activeTab === 'scheduled' ? allScheduled : allSent;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const filtered = base.filter(
+          (e) =>
+            e.subject.toLowerCase().includes(q) ||
+            e.recipientEmail.toLowerCase().includes(q) ||
+            e.body.toLowerCase().includes(q)
+        );
+        setEmails(filtered);
       } else {
-        setEmails(fallbackSent);
+        setEmails(base);
       }
-      setCounts({ scheduled: fallbackScheduled.length, sent: fallbackSent.length });
+      setCounts({ scheduled: allScheduled.length, sent: allSent.length });
     } finally {
       setLoading(false);
     }

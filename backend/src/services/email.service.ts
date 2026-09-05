@@ -102,7 +102,7 @@ export class EmailService {
       const emailRecord = await prisma.email.create({
         data: {
           batchId: batch.id,
-          senderId,
+          senderId: sender.id,
           recipientEmail,
           subject,
           body,
@@ -119,9 +119,9 @@ export class EmailService {
       // 4. Index into Elasticsearch
       await SearchService.indexEmail({
         id: emailRecord.id,
-        userId,
+        userId: effectiveUserId,
         batchId: batch.id,
-        senderId,
+        senderId: sender.id,
         senderEmail: sender.email,
         recipientEmail,
         subject,

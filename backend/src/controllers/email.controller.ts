@@ -215,10 +215,44 @@ export class EmailController {
         status,
       });
 
+      if (results.emails && results.emails.length > 0) {
+        return res.json({
+          success: true,
+          data: results.emails,
+          total: results.total,
+          source: 'elasticsearch',
+        });
+      }
+
+      // High-availability fallback: Query MySQL directly if ES returned 0 or is indexing
+      if (query && query.trim()) {
+        const dbEmails = await prisma.email.findMany({
+          where: {
+            sender: { userId: user.id },
+            ...(status ? { status: status as any } : {}),
+            OR: [
+              { subject: { contains: query.trim() } },
+              { recipientEmail: { contains: query.trim() } },
+              { body: { contains: query.trim() } },
+            ],
+          },
+          include: { sender: true },
+          orderBy: { scheduledAt: 'desc' },
+          take: 50,
+        });
+
+        return res.json({
+          success: true,
+          data: dbEmails,
+          total: dbEmails.length,
+          source: 'mysql_fallback',
+        });
+      }
+
       return res.json({
         success: true,
-        data: results.emails,
-        total: results.total,
+        data: [],
+        total: 0,
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
